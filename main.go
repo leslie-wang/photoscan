@@ -85,10 +85,12 @@ func scan(ctx *cli.Context) error {
 	if len(args) != 1 {
 		return errors.New("must input 1 directory name")
 	}
+
 	dirname, err := filepath.Abs(args[0])
 	if err != nil {
 		return err
 	}
+
 	result, err := scanDir(args[0])
 	if err != nil {
 		return err
@@ -108,7 +110,6 @@ func scan(ctx *cli.Context) error {
 
 func scanDir(dirname string) (dirInfo, error) {
 	dinfos := dirInfo{Name: dirname, Dirs: []dirInfo{}, Files: []fileInfo{}}
-	dinfoCh := make(chan dirInfo)
 	finfoCh := make(chan fileInfo)
 	errCh := make(chan error)
 	count := 0
@@ -120,8 +121,7 @@ func scanDir(dirname string) (dirInfo, error) {
 	for _, entry := range entries {
 		info, err := entry.Info()
 		if err != nil {
-			fmt.Printf("skip the err: %s\n", err)
-			return dinfos, nil
+			return dinfos, err
 		}
 
 		// skip hidden files
@@ -131,15 +131,13 @@ func scanDir(dirname string) (dirInfo, error) {
 
 		fullname := filepath.Join(dirname, info.Name())
 		if info.IsDir() {
-			count++
-			go func() {
-				subInfo, err := scanDir(fullname)
-				if err != nil {
-					errCh <- err
-				} else {
-					dinfoCh <- subInfo
-				}
-			}()
+			subInfo, err := scanDir(fullname)
+			if err != nil {
+				return dinfos, err
+			}
+			if len(subInfo.Dirs) != 0 || len(subInfo.Files) != 0 {
+				dinfos.Dirs = append(dinfos.Dirs, subInfo)
+			}
 			continue
 		}
 
@@ -152,7 +150,6 @@ func scanDir(dirname string) (dirInfo, error) {
 		}
 
 		count++
-		fmt.Printf("--- handle file: %s\n", fullname)
 		go func() {
 			fi, err := calHash(fullname)
 			if err != nil {
@@ -165,8 +162,6 @@ func scanDir(dirname string) (dirInfo, error) {
 
 	for i := 0; i < count; i++ {
 		select {
-		case dinfo := <-dinfoCh:
-			dinfos.Dirs = append(dinfos.Dirs, dinfo)
 		case finfo := <-finfoCh:
 			dinfos.Files = append(dinfos.Files, finfo)
 		case err := <-errCh:
