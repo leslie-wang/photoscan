@@ -82,6 +82,13 @@ func promptDedup(hash string, names []string) error {
 	log.Printf("%d dup found: %v", len(names), names)
 	items := []string{"Keep all"}
 	for _, n := range names {
+		_, err := os.Stat(n)
+		if err != nil {
+			if os.IsNotExist(err) {
+				fmt.Printf("%s is not exist anymore\n", n)
+				continue
+			}
+		}
 		img, err := parseImage(n)
 		if err != nil {
 			log.Printf("ERROR PARSE: %v", err)
@@ -96,21 +103,24 @@ func promptDedup(hash string, names []string) error {
 		}
 		items = append(items, "Delete '"+n+"'")
 	}
-	prompt := promptui.Select{
-		Label: "Please confirm to proceed",
-		Items: items,
-		Size:  len(items),
-	}
+	for len(items) > 2 {
+		prompt := promptui.Select{
+			Label: "Please confirm to proceed",
+			Items: items,
+			Size:  len(items),
+		}
 
-	idx, _, err := prompt.Run()
-	if err != nil {
-		return err
+		idx, _, err := prompt.Run()
+		if err != nil {
+			return err
+		}
+		if idx == 0 {
+			return nil
+		}
+		fmt.Println(names[idx-1])
+		names = append(names[:idx-1], names[idx:]...)
+		items = append(items[:idx], items[idx+1:]...)
 	}
-	if idx == 0 {
-		return nil
-	}
-	fmt.Println(items[idx])
-
 	return nil
 }
 
