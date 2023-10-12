@@ -35,6 +35,12 @@ func main() {
 			Usage:     "search in given directories, show and delete duplicated one",
 			Aliases:   []string{"c"},
 			Action:    dedup,
+			Flags: []cli.Flag{
+				cli.BoolFlag{
+					Name:  "delete, d",
+					Usage: "delete duplicated entries",
+				},
+			},
 		},
 	}
 
