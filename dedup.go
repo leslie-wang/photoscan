@@ -93,23 +93,15 @@ func promptDedup(names []string, delete bool) error {
 			}
 		}
 		fmt.Printf("%s:\n", n)
-		img, err := parseImage(n)
+		// use imagemagick to do conversion
+		err = exec.Command("convert", n, "-resize", "100x100", tmpConvertFilename).Run()
 		if err != nil {
-			if err != image.ErrFormat {
-				log.Printf("ERROR parse image: %v", err)
-				continue
-			}
-
-			// use imagemagick to do conversion
-			err = exec.Command("convert", n, "-resize", "100x100", tmpConvertFilename).Run()
-			if err != nil {
-				log.Printf("ERROR decode and render: %v\n", err)
-				continue
-			}
-			img, err = parseImage(tmpConvertFilename)
-			if err != nil {
-				log.Printf("ERROR parse converted image: %v", err)
-			}
+			log.Printf("ERROR decode and render: %v\n", err)
+			continue
+		}
+		img, err := parseImage(tmpConvertFilename)
+		if err != nil {
+			log.Printf("ERROR parse converted image: %v", err)
 		}
 
 		err = renderImage(img)
