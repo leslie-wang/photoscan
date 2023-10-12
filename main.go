@@ -40,6 +40,10 @@ func main() {
 					Name:  "delete, d",
 					Usage: "delete duplicated entries",
 				},
+				cli.BoolFlag{
+					Name:  "fast, f",
+					Usage: "fast mode, and won't display image",
+				},
 			},
 		},
 	}

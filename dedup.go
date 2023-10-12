@@ -41,7 +41,7 @@ func dedup(ctx *cli.Context) error {
 		if len(names) <= 1 {
 			continue
 		}
-		err := promptDedup(names, ctx.Bool("delete"))
+		err := promptDedup(names, ctx.Bool("delete"), ctx.Bool("fast"))
 		if err != nil {
 			return err
 		}
@@ -81,8 +81,11 @@ func detectDup(fhash map[string][]string, dinfo *dirInfo) {
 	}
 }
 
-func promptDedup(names []string, delete bool) error {
+func promptDedup(names []string, delete, fast bool) error {
 	log.Printf("%d dup found: %v", len(names), names)
+	if fast {
+		return nil
+	}
 	items := []string{"Keep all"}
 	for _, n := range names {
 		_, err := os.Stat(n)
