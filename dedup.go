@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"image"
@@ -19,10 +20,12 @@ import (
 	"github.com/urfave/cli"
 )
 
+var tmpConvertFilename = os.TempDir() + string(os.PathSeparator) + "photoscan_dedup.jpg"
+
 func dedup(ctx *cli.Context) error {
 	args := ctx.Args()
 	if len(args) == 0 {
-		return errors.New("2 directories are needed")
+		return errors.New("1 directory is needed at least")
 	}
 
 	fhash := map[string][]string{}
@@ -89,16 +92,29 @@ func promptDedup(hash string, names []string) error {
 				continue
 			}
 		}
+		fmt.Printf("%s:\n", n)
 		img, err := parseImage(n)
 		if err != nil {
-			log.Printf("ERROR PARSE: %v", err)
-			continue
+			if err != image.ErrFormat {
+				log.Printf("ERROR parse image: %v", err)
+				continue
+			}
+
+			// use imagemagick to do conversion
+			err = exec.Command("convert", n, "-resize", "100x100", tmpConvertFilename).Run()
+			if err != nil {
+				log.Printf("ERROR decode and render: %v\n", err)
+				continue
+			}
+			img, err = parseImage(tmpConvertFilename)
+			if err != nil {
+				log.Printf("ERROR parse converted image: %v", err)
+			}
 		}
 
-		fmt.Printf("%s:\n", n)
 		err = renderImage(img)
 		if err != nil {
-			log.Printf("ERROR ENCODE SIXEL: %v", err)
+			log.Printf("ERROR encode sixel: %v", err)
 			continue
 		}
 		items = append(items, "Delete '"+n+"'")
@@ -117,7 +133,10 @@ func promptDedup(hash string, names []string) error {
 		if idx == 0 {
 			return nil
 		}
-		fmt.Println(names[idx-1])
+		err = os.Remove(names[idx-1])
+		if err != nil {
+			log.Printf("ERROR delete %s: %s", names[idx-1], err)
+		}
 		names = append(names[:idx-1], names[idx:]...)
 		items = append(items[:idx], items[idx+1:]...)
 	}
